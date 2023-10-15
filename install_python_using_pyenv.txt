@@ -1,0 +1,21 @@
+Install Choco: https://www.liquidweb.com/kb/how-to-install-chocolatey-on-windows/
+or https://chocolatey.org/install
+
+Install Pyenv: https://github.com/pyenv-win/pyenv-win/blob/master/docs/installation.md#chocolatey
+
+Installation using Windows Powershell(terminal)
+1. Set-ExecutionPolicy AllSigned
+2. Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
+3. choco install pyenv-win
+4. [System.Environment]::SetEnvironmentVariable('PYENV',$env:USERPROFILE + "\.pyenv\pyenv-win\","User")
+5. [System.Environment]::SetEnvironmentVariable('PYENV_ROOT',$env:USERPROFILE + "\.pyenv\pyenv-win\","User")
+6. [System.Environment]::SetEnvironmentVariable('PYENV_HOME',$env:USERPROFILE + "\.pyenv\pyenv-win\","User")
+7. [System.Environment]::SetEnvironmentVariable('path', $env:USERPROFILE + "\.pyenv\pyenv-win\bin;" + $env:USERPROFILE + "\.pyenv\pyenv-win\shims;" + [System.Environment]::GetEnvironmentVariable('path', "User"),"User")
+
+If pyenv still not works on powershell(although it might work in cmd):
+Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope Process
+For more reference: https://github.com/pyenv-win/pyenv-win/issues/332
+
+8. pyenv install --list
+9. pyenv install 3.9.10
+10. pyenv global 3.9.10
