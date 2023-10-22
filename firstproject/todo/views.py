@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from todo.helpers import get_404_json_response, update_object
 from .choices import TaskStatusChoice
 from django.http import HttpResponse, JsonResponse
@@ -111,35 +111,38 @@ def logout(request):
 @login_required
 def list_create_task(request):
     if request.method == "POST":
-        data = json.loads(request.body)
+        data = request.POST
         user = request.user
         title = data.get("title")
         description = data.get("description", "")
         status = data.get("status", TaskStatusChoice.PENDING)
-        due_date = data.get("")
+        due_date = data.get("due_date", None)
+        due_time = data.get("due_time", None)
         task = Task.objects.create(
             user=user,
             title=title,
             description=description,
             status=status,
-            due_date=due_date
+            due_date=due_date,
+            due_time=due_time
         )
-        return JsonResponse(
-            {
-                "status": "success",
-                "message": "Successfully Created",
-                "payload": {
-                    "title": task.title,
-                    "description": task.description,
-                    "status": task.status,
-                    "due_date": task.due_date,
-                    "due_time": task.due_time,
-                    "created_at": task.created_at,
-                    "updated_at": task.updated_at
-                }
-            },
-            status=201
-        )
+        # return JsonResponse(
+        #     {
+        #         "status": "success",
+        #         "message": "Successfully Created",
+        #         "payload": {
+        #             "title": task.title,
+        #             "description": task.description,
+        #             "status": task.status,
+        #             "due_date": task.due_date,
+        #             "due_time": task.due_time,
+        #             "created_at": task.created_at,
+        #             "updated_at": task.updated_at
+        #         }
+        #     },
+        #     status=201
+        # )
+        return redirect("/tasks/")
     elif request.method == "GET":
         page = request.GET.get("page", 1)
         ordering = request.GET.get("ordering", "-created_at")
@@ -152,7 +155,7 @@ def list_create_task(request):
             task_queryset = task_queryset.filter(status=status)
 
         # pagination
-        page_size = 1
+        page_size = 5
         paginator = Paginator(task_queryset, page_size)
         try:
             page_obj = paginator.page(page)
@@ -171,19 +174,29 @@ def list_create_task(request):
         else:
             next = ""
 
-        response_payload_results = serialize("json", page_obj.object_list, fields=('title', 'description', 'user'))
+        response_payload_results = serialize("json", page_obj.object_list)
         # The safe boolean parameter defaults to True. If it's set to False, any object can be passed for serialization (otherwise only dict instances are allowed).
-        joins = ["user"]
-        return JsonResponse({
-            "status": "succes",
-            "message": "Successfully fetched all tasks",
-            "payload": {
-                "count": page_obj.paginator.count,
-                "previous": previous,
-                "next": next,
-                "results": json.loads(response_payload_results)
-            }
-        }, status=200)
+        # return JsonResponse({
+        #     "status": "succes",
+        #     "message": "Successfully fetched all tasks",
+        #     "payload": {
+        #         "count": page_obj.paginator.count,
+        #         "previous": previous,
+        #         "next": next,
+        #         "results": json.loads(response_payload_results)
+        #     }
+        # }, status=200)
+
+        print(response_payload_results)
+
+        context = {
+            "results": json.loads(response_payload_results),
+            "page_obj": page_obj,
+            "is_paginated": True,
+            "paginator": page_obj.paginator
+        }
+
+        return render(request, 'todo/todo_list.html', context=context)
 
         # text/html
         # return HttpResponse(response_payload_results, content_type="application/json")
@@ -199,7 +212,7 @@ def list_create_task(request):
 
 
 @login_required
-def retrieve_update_delete_task(request, id):
+def retrieve_update_task(request, id):
     if request.method == "GET":
         task = Task.objects.filter(user=request.user, id=id).first()
         if task is None:
@@ -218,8 +231,8 @@ def retrieve_update_delete_task(request, id):
             "payload": json.loads(task_serialized)[0]
         }, status=200)
 
-    if request.method in ["PATCH", "PUT"]:
-        data = json.loads(request.body)
+    if request.method == "POST":
+        data = request.POST
         # tasks = Task.objects.filter(user=request.user, id=id)
         # task = tasks.first()
         task = Task.objects.filter(user=request.user, id=id).first()
@@ -234,51 +247,20 @@ def retrieve_update_delete_task(request, id):
             )
         update_object(task, **data)
         # tasks.update(**data)
-        return JsonResponse(
-            {
-                "status": "error",
-                "message": f"Task with {id} id updated successfully",
-                "payload": {
-                    "title": task.title,
-                    "description": task.description,
-                    "status": task.status,
-                    "due_date": task.due_date,
-                    "due_time": task.due_time,
-                    "created_at": task.created_at,
-                    "updated_at": task.updated_at
-                }
-            },
-            status=200
-        )
-    elif request.method == "DELETE":
-        task = Task.objects.filter(user=request.user, id=id).first()
-        if task is None:
-            return JsonResponse(
-                {
-                    "status": "error",
-                    "message": f"Task with {id} id does not exists",
-                    "payload": {}
-                },
-                status=404
-            )
-        task.delete()
-        return JsonResponse(
-                {
-                    "status": "success",
-                    "message": f"Task with {id} id deleted successfully",
-                    "payload": {}
-                },
-                status=200
-            )
+        return redirect("/tasks/")
     else:
-        return JsonResponse(
-            {
-                "status": "error",
-                "message": "Not Found",
-                "payload": {}
-            },
-            status=404
-        )
+        return HttpResponse("404 Not Found")
+
+
+@login_required
+def delete_task(request, id):
+    if request.method != "POST":
+        return HttpResponse("404 Not Found")
+    task = Task.objects.filter(user=request.user, id=id).first()
+    if task is None:
+        return redirect("/tasks/")
+    task.delete()
+    return redirect("/tasks/")
 
 
 # what is missing => request body validation, response validation and customization, unexpected error handling, throttling, removing csrf and adding cors origin, controlling response using global renderers, stateless authentication

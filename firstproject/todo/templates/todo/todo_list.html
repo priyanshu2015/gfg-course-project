@@ -1,0 +1,371 @@
+{% extends 'todo/base.html' %} {% load static %} {% comment %} {% load myfilters
+%} {% endcomment %} {% block title %} {% endblock %} {% block css %}
+<link
+  rel="stylesheet"
+  href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css"
+/>
+<style>
+  .main-area {
+    padding-left: 20px;
+    padding-right: 20px;
+    padding-top: 0px;
+    background-color: #f8f9fa;
+  }
+
+  .product-cards {
+    background-color: white;
+    padding: 10px;
+  }
+
+  .btn-primary {
+    margin: 10px;
+  }
+
+  .pagination {
+    justify-content: center;
+  }
+
+  .utility {
+    display: flex;
+  }
+
+  .input-group-append {
+    cursor: pointer;
+  }
+</style>
+{% endblock %} {% block body%}
+<div class="main-area">
+  <div class="product-cards">
+    <div class="utility">
+      <!-- For Making A Search Bar -->
+      <form method="GET" action="/tasks/" class="d-flex">
+        <input
+          class="form-control me-2"
+          name="search"
+          id="search"
+          type="search"
+          placeholder="Search"
+          aria-label="Search"
+        />
+        <button class="btn btn-outline-success" type="submit">Search</button>
+      </form>
+
+      <!-- For filtering based on Price -->
+      <select
+        name="status"
+        id="status-list"
+        onchange="location = finalurl2();"
+        style="margin-left: auto"
+      >
+        <option value="" id="status-placeholder" disable hidden selected>
+          Status
+        </option>
+        <option id="PENDING" value="PENDING">Pending</option>
+        <option id="IN_PROGRESS" value="IN_PROGRESS">In Progress</option>
+        <option id="COMPLETED" value="COMPLETED">Completed</option>
+        <option id="ARCHIVED" value="ARCHIVED">Archived</option>
+      </select>
+
+      <!-- For making sorting functionality -->
+      <select
+        name="sort"
+        id="sort-list"
+        onchange="location = finalurl();"
+        style="margin-left: auto"
+      >
+        <option value="" id="placeholder" disabled selected hidden>Sort</option>
+        <option id="-created_at" value="-created_at">Latest Added</option>
+        <option id="-updated_at" value="-updated_at">Latest Updated</option>
+      </select>
+    </div>
+    <br />
+    <div class="d-flex flex-row justify-content-between">
+      <h3 class="">Tasks</h3>
+      <button
+        type="button"
+        class="btn btn-primary"
+        data-toggle="modal"
+        data-target="#taskModal"
+      >
+        Add New
+      </button>
+    </div>
+
+    <div class="list-group">
+      {% for task in results %}
+      <button type="button"
+        class="list-group-item list-group-item-action d-flex justify-content-between align-items-start" onclick="populate('{{task.fields.title}}', '{{task.fields.description}}', '{{task.fields.status}}', '{{task.fields.due_date}}', '{{task.fields.due_time}}')"
+      >
+        <div class="ms-2 me-auto">
+          <div class="fw-bold">{{task.fields.title}}</div>
+          {{task.fields.description}}
+        </div>
+
+        <div>
+        <span class="badge bg-primary rounded-pill"
+          >{{task.fields.status}}</span
+        >
+        <form method="POST" action="{% url 'delete-task' task.pk %}"> {% csrf_token %}
+        <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+        <form>
+        </div>
+        </button>
+      </div>
+      {% endfor %}
+    </ol>
+
+    <br />
+
+    <!-- **Now the pagination section** .... -->
+    {% if is_paginated %}
+    <nav class="pagination">
+      <ul class="pagination">
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+          <a
+            class="page-link"
+            tabindex="-1"
+            aria-disabled="true"
+            href="/tasks/?page={{ page_obj.previous_page_number }}"
+            >Previous</a
+          >
+        </li>
+        {% endif %}
+        {% for i in paginator.page_range %}
+        {% if i == page_obj.number %}
+        <li class="page-item active" aria-current="page">
+          <a
+            class="page-link"
+            href="/tasks/?page={{i}}"
+            span
+            class="visually-hidden"
+            >{{i}}</a
+          >
+        </li>
+        {% else %}
+        <li class="page-item">
+          <a class="page-link" href="/tasks/?page={{i}}">{{i}}</a>
+        </li>
+        {% endif %} {% endfor %} {% if page_obj.has_next %}
+        <li class="page-item">
+          <a
+            class="page-link"
+            tabindex="-1"
+            href="/tasks/?page={{ page_obj.next_page_number }}"
+            >Next</a
+          >
+        </li>
+        {% endif %}
+      </ul>
+    </nav>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Modal -->
+<div
+  class="modal fade"
+  id="taskModal"
+  tabindex="-1"
+  aria-labelledby="exampleModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="exampleModalLabel">Create new ToDo Task</h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+      <form method="POST" action="/tasks/">
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="create-task-title" class="form-label">Title</label>
+            <input class="form-control" id="update-task-title" name="title" placeholder="" />
+
+            <label for="create-task-description" class="form-label"
+              >Description</label
+            >
+            <textarea
+              class="form-control mb-3"
+              id="update-task-description"
+              rows="3" name="description"
+            ></textarea>
+
+            <select id="update-status-list" class="form-select" name="status" aria-label="Default select example">
+              <option selected>Status</option>
+              <option value="PENDING">Pending</option>
+              <option value="IN_PROGRESS">In Progress</option>
+              <option value="COMPLETED">Completed</option>
+              <option value="ARCHIVED">Archived</option>
+            </select>
+
+            <label for="create-task-due-date" class="form-label mt-3"
+              >Due Date</label
+            >
+            <input type="date" id="update-task-due-date" name="due_date" />
+
+            <label for="create-task-due-time" class="form-label mt-3"
+              >Due Time</label
+            >
+            <input type="time" id="update-task-due-time" name="due_time">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">
+            Close
+          </button>
+          <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+
+<!-- Modal -->
+<div
+  class="modal fade"
+  id="updateTaskModal"
+  tabindex="-1"
+  aria-labelledby="exampleModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="exampleModalLabel">Update Task</h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+      <form method="POST" action="/tasks/">
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="create-task-title" class="form-label">Title</label>
+            <input class="form-control" id="create-task-title" name="title" placeholder="" />
+
+            <label for="create-task-description" class="form-label"
+              >Description</label
+            >
+            <textarea
+              class="form-control mb-3"
+              id="create-task-description"
+              rows="3" name="description"
+            ></textarea>
+
+            <select class="form-select" name="status" aria-label="Default select example">
+              <option selected>Status</option>
+              <option value="PENDING">Pending</option>
+              <option value="IN_PROGRESS">In Progress</option>
+              <option value="COMPLETED">Completed</option>
+              <option value="ARCHIVED">Archived</option>
+            </select>
+
+            <label for="create-task-due-date" class="form-label mt-3"
+              >Due Date</label
+            >
+            <input type="date" id="create-task-due-date" name="due_date" />
+
+            <label for="create-task-due-time" class="form-label mt-3"
+              >Due Time</label
+            >
+            <input type="time" id="create-task-due-time" name="due_time">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">
+            Close
+          </button>
+          <button type="submit" class="btn btn-primary">Create</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %} {% block js %}
+<script>
+  // for getting the sorting status to be displayed in sorting dropdown placeholder
+  function get(name) {
+    if (
+      (name = new RegExp("[?&]" + encodeURIComponent(name) + "=([^&]*)").exec(
+        location.search
+      ))
+    )
+      //location.search give query sling part
+      return decodeURIComponent(name[1]);
+  }
+
+  if (get("ordering"))
+    document.getElementById("placeholder").innerHTML =
+      "Sort: " + document.getElementById(get("ordering")).innerHTML;
+
+  if (get("status")) {
+    document.getElementById(get("status")).setAttribute("selected", "selected");
+  }
+
+  // for getting url after applying ordering
+  function finalurl() {
+    var url = new URL(window.location.href);
+    var search_params = url.searchParams;
+    search_params.set("ordering", document.getElementById("sort-list").value);
+    url.search = search_params.toString();
+    var new_url = url.toString();
+    return new_url;
+  }
+
+  // for getting url after applying price filtering
+  function finalurl2() {
+    var url = new URL(window.location.href);
+    var search_params = url.searchParams;
+    search_params.set("status", document.getElementById("status-list").value);
+    url.search = search_params.toString();
+    var new_url = url.toString();
+    return new_url;
+  }
+
+  function populate(title, description, status, due_date, due_time){
+    // document.getElementById("update-task-title").setAttribute("placeholder", title);
+    // console.log(document.getElementById("update-task-title"))
+    // document.getElementById("update-task-description").value = description;
+    // document.getElementById("update-status-list").value = status;
+    // document.getElementById("update-task-due-date").value = due_date;
+    // document.getElementById("update-task-due-time").value = due_time;
+    var myModal = new bootstrap.Modal(document.getElementById("updateTaskModal"), {});
+    document.onreadystatechange = function () {
+    myModal.show();
+};
+  }
+</script>
+
+<script src="https://code.jquery.com/jquery-1.12.4.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+
+<script>
+  {% comment %} $(function(){
+    $('#datepicker').datepicker();
+  }); {% endcomment %}
+</script>
+
+{% comment %}
+<script>
+  // for giving suggestions in search box by calling an API
+  $(function () {
+    $("#search").autocomplete({
+      source: '{% url 'suggestionapi' %}',
+      minLength: 2
+    });
+  });
+</script>
+{% endcomment %} {% endblock %}
