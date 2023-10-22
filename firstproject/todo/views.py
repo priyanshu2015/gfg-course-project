@@ -1,15 +1,17 @@
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.http import JsonResponse, HttpResponse
 import json
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate, login as django_login, logout as django_logout
+from todo.helpers import update_obj
 from todo.models import Task
 from django.core.serializers import serialize
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
-
+from django.urls import reverse
 from todo.choices import StatusChoice
+from django.contrib import messages
 
 User = get_user_model()
 
@@ -107,24 +109,32 @@ def logout(request):
 @login_required
 def list_create_task(request):
     if request.method == "POST":
-        data = json.loads(request.body)
+        data = request.POST
         user = request.user
         title = data["title"]
         description = data.get("description", "")
         status = data.get("status", StatusChoice.PENDING)
+        due_date = data.get("due_date", None)
+        due_time = data.get("due_time", None)
+
+        print(due_date)
+        print(due_time)
 
         task = Task.objects.create(
             user=user,
             title=title,
             description=description,
-            status=status
+            status=status,
+            due_date=due_date,
+            due_time=due_time
         )
-        task_serialized = serialize("json", [task], fields=('title', 'description', 'status', 'created_at', 'updated_at'))
-        return JsonResponse({
-            "status": "success",
-            "message": "Successfully created",
-            "payload": json.loads(task_serialized)[0]
-        }, status=201)
+        # task_serialized = serialize("json", [task], fields=('title', 'description', 'status', 'created_at', 'updated_at'))
+        # return JsonResponse({
+        #     "status": "success",
+        #     "message": "Successfully created",
+        #     "payload": json.loads(task_serialized)[0]
+        # }, status=201)
+        return redirect("/tasks/")
     if request.method == "GET":
         # list the objects
         page = request.GET.get("page", 1)
@@ -139,7 +149,7 @@ def list_create_task(request):
             task_queryset = task_queryset.filter(status=status)
         
         # pagination
-        page_size = 1
+        page_size = 5
         paginator = Paginator(task_queryset, page_size)
         try:
             page_obj = paginator.page(page)
@@ -159,17 +169,27 @@ def list_create_task(request):
         else:
             next = ""
 
-        response_payload_results = serialize("json", page_obj.object_list)
-        return JsonResponse({
-            "status": "success",
-            "message": "Successfully retrieved",
-            "payload": {
-                "count": page_obj.paginator.count,
-                "previous": previous,
-                "next": next,
-                "results": json.loads(response_payload_results)
-            }
-        }, status=200)
+        # response_payload_results = serialize("json", page_obj.object_list)
+        # return JsonResponse({
+        #     "status": "success",
+        #     "message": "Successfully retrieved",
+        #     "payload": {
+        #         "count": page_obj.paginator.count,
+        #         "previous": previous,
+        #         "next": next,
+        #         "results": json.loads(response_payload_results)
+        #     }
+        # }, status=200)
+
+        print(page_obj.object_list)
+
+        context = {
+            "is_paginated": True,
+            "page_obj": page_obj,
+            "paginator": page_obj.paginator,
+            "results": page_obj.object_list
+        }
+        return render(request, template_name="todo/todo_list.html", context=context)
     else:
         return JsonResponse({
             "status": "error",
@@ -178,5 +198,49 @@ def list_create_task(request):
         }, status=404)
 
 
+@login_required
+def retrieve_update_task(request, id):
+    if request.method == "GET":
+        task = Task.objects.filter(user=request.user, id=id).first()
+        if task is None:
+            response_data = {
+                "status": "error",
+                "message": "Task with this id not found",
+                "payload": {}
+            }
+            return HttpResponse(json.dumps(response_data), content_type="application/json")
+        task_serialized = serialize("json", [task], fields=('title', 'description', 'status', 'created_at', 'updated_at'))
+        return JsonResponse({
+            "status": "success",
+            "message": "Successfully retrieved",
+            "payload": json.loads(task_serialized)[0]
+        }, status=200)
+    if request.method in ["PUT", "PATCH"]:
+        data = json.loads(request.body)
+        task = Task.objects.filter(user=request.user, id=id).first()
+        if task is None:
+            return JsonResponse({
+                "status": "error",
+                "message": f"Task with {id} id not found",
+                "payload": {}
+            }, status=404)
+        update_obj(task, **data)
+        task_serialized = serialize("json", [task])
+        return JsonResponse({
+            "status": "success",
+            "message": "Successfully updated",
+            "payload": json.loads(task_serialized)[0]
+        }, status=200)
 
-    
+
+@login_required
+def delete_task(request, id):
+    if request.method != "POST":
+        messages.error(request=request, message="Not Found")
+        # return HttpResponse("Not Found")
+        return redirect("/tasks/")
+    task = Task.objects.filter(user=request.user, id=id).first()
+    if task is None:
+        return HttpResponse("Not Found")
+    task.delete()
+    return redirect(reverse("list-create-task"))
