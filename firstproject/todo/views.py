@@ -146,7 +146,7 @@ def list_create_task(request):
         search = request.GET.get("search", None)
         status = request.GET.get("status", None)
         ordering = request.GET.get("ordering", "-created_at")
-        task_queryset = Task.objects.filter(user=request.user).order_by(ordering)
+        task_queryset = Task.objects.filter(user=request.user).order_by(ordering).prefetch_related("tags_new")
 
         if search is not None:
             task_queryset = task_queryset.filter(title__icontains=search)
@@ -154,25 +154,25 @@ def list_create_task(request):
             task_queryset = task_queryset.filter(status=status)
 
         # pagination
-        page_size = 5
-        paginator = Paginator(task_queryset, page_size)
-        try:
-            page_obj = paginator.page(page)
-        except PageNotAnInteger:
-            page_obj = paginator.page(1)
-        except EmptyPage:
-            page_obj = paginator.page(paginator.num_pages)
+        # page_size = 5
+        # paginator = Paginator(task_queryset, page_size)
+        # try:
+        #     page_obj = paginator.page(page)
+        # except PageNotAnInteger:
+        #     page_obj = paginator.page(1)
+        # except EmptyPage:
+        #     page_obj = paginator.page(paginator.num_pages)
 
-        # previous
-        if page_obj.has_previous():
-            previous = page_obj.previous_page_number()
-        else:
-            previous = ""
-        # next
-        if page_obj.has_next():
-            next = page_obj.next_page_number()
-        else:
-            next = ""
+        # # previous
+        # if page_obj.has_previous():
+        #     previous = page_obj.previous_page_number()
+        # else:
+        #     previous = ""
+        # # next
+        # if page_obj.has_next():
+        #     next = page_obj.next_page_number()
+        # else:
+        #     next = ""
 
         # response_payload_results = serialize("json", page_obj.object_list)
         # return JsonResponse({
@@ -186,13 +186,14 @@ def list_create_task(request):
         #     }
         # }, status=200)
 
-        print(page_obj.object_list)
+        # print(page_obj.object_list)
 
         context = {
-            "is_paginated": True,
-            "page_obj": page_obj,
-            "paginator": page_obj.paginator,
-            "results": page_obj.object_list
+            "is_paginated": False,
+            # "page_obj": page_obj,
+            # "paginator": page_obj.paginator,
+            # "results": page_obj.object_list
+            "results": task_queryset
         }
         return render(request, template_name="todo/todo_list.html", context=context)
     else:
