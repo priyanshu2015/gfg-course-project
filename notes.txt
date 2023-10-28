@@ -1,0 +1,33 @@
+Database operations
+
+Adding a user to group -
+- group = Group.objects.get(name="operations")
+- request.user.groups.add(group)
+
+Raw SQL Queries
+- a = Account.objects.raw("SELECT * from firstapp_account")
+
+
+- from django.db import connection
+- cursor = connection.cursor()
+- cursor.execute("SELECT * from accounts")
+- cursor.fetchall() or fetchone()
+
+
+- Account.objects.all().query.sql_with_params()
+
+- connection.queries
+
+Account.objects.filter(currency="inr", amount=10)
+- SELECT * FROM "firstapp_account" WHERE ("firstapp_account"."amount" = 10.0 AND "firstapp_account"."currency" = \'inr\'
+
+- SELECT * FROM "firstapp_account" WHERE ("firstapp_account"."currency" = \'inr\' AND "firstapp_account"."amount" = 10.0)
+
+- t = Task.objects.filter(extras__a="c")
+
+
+- Account.objects.all().aggregate(sum=Sum('amount'))
+- Account.objects.all().values("user", "currency").annotate(sum=Sum('amount'))
+
+
+- INSERT into todo_tasktag (task_id, tag_id) values (6, 1);
