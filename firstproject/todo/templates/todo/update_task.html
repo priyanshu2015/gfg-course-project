@@ -1,0 +1,60 @@
+{% extends 'todo/base.html' %}
+{% load myfilters %}
+{% block title %}
+
+{% endblock %}
+
+{% block css %}
+<style>
+.main-area{
+    padding-left: 20px;
+    padding-right: 20px;
+}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="main-area">
+    <h3>Update Task</h3>
+    <form method="POST" action="{% url 'update-task' task.pk  %}"> {% csrf_token %}
+        <div class="modal-body">
+            <div class="mb-3">
+                <label for="update-task-title" class="form-label">Title</label>
+                <input class="form-control" id="update-task-title" name="title" placeholder="" value="{{task.fields.title}}">
+              </div>
+              <div class="mb-3">
+                <label for="update-task-description" class="form-label">Description</label>
+                <textarea class="form-control" id="update-task-description" name="description" rows="3">{{task.fields.description}}</textarea>
+            </div>
+
+            <select id="update-task-status-list" class="form-select" name="status" aria-label="Default select example">
+                <option >Status</option>
+                <option value="PENDING">Pending</option>
+                <option value="IN_PROGRESS">In Progress</option>
+                <option value="COMPLETED">Completed</option>
+                <option value="ARCHIVED">Archived</option>
+            </select>
+
+            <label for="update-task-due-date" class="form-label mt-3">Due Date</label>
+            <input type="date" id="update-task-due-date" name="due_date" value="{{task.fields.due_date}}" />
+
+            <label for="update-task-due-time" class="form-label mt-3">Due Time</label>
+            <input type="time" id="update-task-due-time" name="due_time" value="{{task.fields.due_time}}">
+
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+          <button type="submit" class="btn btn-primary">Update</button>
+        </div>
+    </form>
+</div>
+
+{% endblock %}
+
+{% block js %}
+<script>
+var statusList = document.getElementById("update-task-status-list");
+console.log(statusList)
+statusList.value = "{{task.fields.status}}";
+</script>
+{% endblock %}

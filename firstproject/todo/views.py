@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate, login as django_login, logout as django_logout
-from todo.helpers import update_obj
+from todo.helpers import task_status_update, update_obj
 from todo.models import Task
 from django.core.serializers import serialize
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
@@ -36,7 +36,7 @@ def register(request):
             "message": "Please provide necessary info",
             "payload": {}
         }, status=400)
-    
+
     existing_user = User.objects.filter(username=username)
     if existing_user.exists():
         return JsonResponse({
@@ -44,7 +44,7 @@ def register(request):
             "message": "User with this username already exists",
             "payload": {}
         }, status=400)
-    
+
     user = User(
         email=email,
         username=username
@@ -88,7 +88,7 @@ def login(request):
             "message": "Invalid credentials",
             "payload": {}
         }, status=200)
-    
+
 
 @login_required
 def logout(request):
@@ -116,6 +116,11 @@ def list_create_task(request):
         status = data.get("status", StatusChoice.PENDING)
         due_date = data.get("due_date", None)
         due_time = data.get("due_time", None)
+
+        if due_date == "":
+            due_date = None
+        if due_time == "":
+            due_time = None
 
         print(due_date)
         print(due_time)
@@ -147,7 +152,7 @@ def list_create_task(request):
             task_queryset = task_queryset.filter(title__icontains=search)
         if status is not None:
             task_queryset = task_queryset.filter(status=status)
-        
+
         # pagination
         page_size = 5
         paginator = Paginator(task_queryset, page_size)
@@ -199,7 +204,7 @@ def list_create_task(request):
 
 
 @login_required
-def retrieve_update_task(request, id):
+def retrieve_task(request, id):
     if request.method == "GET":
         task = Task.objects.filter(user=request.user, id=id).first()
         if task is None:
@@ -215,22 +220,41 @@ def retrieve_update_task(request, id):
             "message": "Successfully retrieved",
             "payload": json.loads(task_serialized)[0]
         }, status=200)
-    if request.method in ["PUT", "PATCH"]:
-        data = json.loads(request.body)
+
+
+def update_task(request, id):
+    if request.method == "GET":
         task = Task.objects.filter(user=request.user, id=id).first()
         if task is None:
-            return JsonResponse({
-                "status": "error",
-                "message": f"Task with {id} id not found",
-                "payload": {}
-            }, status=404)
+            return HttpResponse("Not Found")
+        task_serialized = serialize("json", [task], fields=('title', 'description', 'status', 'due_date', 'due_time'))
+        context_data = {
+            "task": json.loads(task_serialized)[0]
+        }
+        return render(request, template_name="todo/update_task.html", context=context_data)
+    if request.method == "POST":
+        data = request.POST
+        data = {
+            "title": data.get("title", None),
+            "description": data.get("description", None),
+            "status": data.get("status", None),
+            "due_date": data.get("due_date", None),
+            "due_time": data.get("due_time", None)
+        }
+        if data["due_date"] == "":
+            data["due_date"] = None
+        if data["due_time"] == "":
+            data["due_time"] = None
+        print(data)
+        task = Task.objects.filter(user=request.user, id=id).first()
+        if task is None:
+            return HttpResponse("Not Found")
+        if data.get("status") is not None:
+            task_status_update(task=task, status=data.get("status"))
+            del data["status"]
         update_obj(task, **data)
-        task_serialized = serialize("json", [task])
-        return JsonResponse({
-            "status": "success",
-            "message": "Successfully updated",
-            "payload": json.loads(task_serialized)[0]
-        }, status=200)
+        messages.success(request=request, message="Successfully Updated")
+        return redirect("/tasks/")
 
 
 @login_required

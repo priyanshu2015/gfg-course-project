@@ -1,10 +1,15 @@
 from django.db import models
 from todo.choices import StatusChoice
 from django.contrib.auth import get_user_model
+from django.core.serializers.json import DjangoJSONEncoder
 
 User = get_user_model()
 
-# Create your models here.
+
+class Tag(models.Model):
+    name = models.CharField(max_length=20, unique=True)
+
+
 class Task(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     title = models.CharField(max_length=255)
@@ -16,6 +21,25 @@ class Task(models.Model):
     due_time = models.TimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    # usage of DjangoJSONEncoder?
+    extras = models.JSONField(default=dict, encoder=DjangoJSONEncoder)
+
+    # tags = models.ManyToManyField(Tag, related_name="tasks")
+    tags_new = models.ManyToManyField(Tag, related_name="tasks", through='TaskTag')
 
     def __str__(self) -> str:
         return self.title
+
+
+class TaskTag(models.Model):
+    tag = models.ForeignKey(Tag, on_delete=models.CASCADE)
+    task = models.ForeignKey(Task, on_delete=models.CASCADE)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tag_id", "task_id"],
+                name="unique_task_tag",
+            )
+        ]
+
