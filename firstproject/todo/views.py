@@ -12,6 +12,7 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.urls import reverse
 from todo.choices import StatusChoice
 from django.contrib import messages
+from .forms import LoginForm, RegistrationForm, UpdateTaskForm
 
 User = get_user_model()
 
@@ -19,75 +20,48 @@ User = get_user_model()
 # Create your views here.
 @csrf_exempt
 def register(request):
-    if request.method != 'POST':
-        return JsonResponse({
-            "status": "error",
-            "message": "Not Found",
-            "payload": {}
-        }, status=404)
-    request_data = json.loads(request.body)
-    username = request_data.get('username', None)
-    password = request_data.get('password', None)
-    email = request_data.get('email', None)
-
-    if username is None or password is None or email is None:
-        return JsonResponse({
-            "status": "error",
-            "message": "Please provide necessary info",
-            "payload": {}
-        }, status=400)
-
-    existing_user = User.objects.filter(username=username)
-    if existing_user.exists():
-        return JsonResponse({
-            "status": "error",
-            "message": "User with this username already exists",
-            "payload": {}
-        }, status=400)
-
-    user = User(
-        email=email,
-        username=username
-    )
-    user.set_password(raw_password=password)
-    user.save()
-    return JsonResponse({
-        "status": "success",
-        "message": "Successfully Registered",
-        "payload": {
-            "email": user.email,
-            "username": user.username
-        }
-    }, status=201)
+    if request.method == "GET":
+        return render(
+            request,
+            template_name="todo/auth/register.html",
+            context={"form": RegistrationForm()}
+        )
+    if request.method == 'POST':
+        form = RegistrationForm(request.POST)
+        if form.is_valid() is False:
+            return render(request, template_name="todo/auth/register.html", context={"form": form})
+        # request_data = form.cleaned_data
+        # username = request_data.get('username')
+        # password = request_data.get('password')
+        # email = request_data.get('email')
+        form.save()
+        return HttpResponse("Done")
 
 
 @csrf_exempt
 def login(request):
-    if request.method != "POST":
-        return JsonResponse({
-            "status": "error",
-            "message": "Not Found",
-            "payload": {}
-        }, status=404)
-    request_data = json.loads(request.body)
-    username = request_data.get("username", None)
-    password = request_data.get("password", None)
+    if request.method == 'GET':
+        form = LoginForm()
+        return render(request, 'todo/auth/login.html', {'form': form})
+    if request.method == "POST":
+        form = LoginForm(request.POST)
 
-    user = authenticate(username=username, password=password)
-
-    if user is not None:
-        django_login(request, user)
-        return JsonResponse({
-            "status": "success",
-            "message": "Successfully logged in",
-            "payload": {}
-        }, status=200)
-    else:
-        return JsonResponse({
-            "status": "error",
-            "message": "Invalid credentials",
-            "payload": {}
-        }, status=200)
+        if form.is_valid():
+            username = form.cleaned_data['username']
+            password = form.cleaned_data['password']
+            user = authenticate(request,username=username,password=password)
+            if user:
+                django_login(request, user)
+                messages.success(request, f'Hi {username}, welcome back!')
+                if request.GET.get("next") is not None:
+                    return redirect(request.GET.get("next"))
+                return redirect('/tasks/')
+        print(form.errors)
+        form.add_error('', "passwords do not match !")
+        form.add_error('username', "passwords do not match !")
+        # form is not valid or user is not authenticated
+        messages.error(request, f'Invalid username or password')
+        return render(request,'todo/auth/login.html',{'form': form})
 
 
 @login_required
@@ -223,39 +197,33 @@ def retrieve_task(request, id):
         }, status=200)
 
 
+@login_required
 def update_task(request, id):
     if request.method == "GET":
         task = Task.objects.filter(user=request.user, id=id).first()
         if task is None:
             return HttpResponse("Not Found")
-        task_serialized = serialize("json", [task], fields=('title', 'description', 'status', 'due_date', 'due_time'))
         context_data = {
-            "task": json.loads(task_serialized)[0]
+            "form": UpdateTaskForm(instance=task)
         }
         return render(request, template_name="todo/update_task.html", context=context_data)
     if request.method == "POST":
-        data = request.POST
-        data = {
-            "title": data.get("title", None),
-            "description": data.get("description", None),
-            "status": data.get("status", None),
-            "due_date": data.get("due_date", None),
-            "due_time": data.get("due_time", None)
-        }
-        if data["due_date"] == "":
-            data["due_date"] = None
-        if data["due_time"] == "":
-            data["due_time"] = None
-        print(data)
         task = Task.objects.filter(user=request.user, id=id).first()
         if task is None:
             return HttpResponse("Not Found")
-        if data.get("status") is not None:
-            task_status_update(task=task, status=data.get("status"))
-            del data["status"]
-        update_obj(task, **data)
-        messages.success(request=request, message="Successfully Updated")
-        return redirect("/tasks/")
+        form = UpdateTaskForm(request.POST, instance=task)
+
+        if form.is_valid():
+            status = form.cleaned_data.get("status")
+
+            if status is not None:
+                task_status_update(task=task, status=status)
+            form.save()
+            messages.success(request=request, message="Successfully Updated")
+            return redirect("/tasks/")
+        else:
+            context_data = {"form": form}
+            return render(request, template_name="todo/update_task.html", context=context_data)
 
 
 @login_required

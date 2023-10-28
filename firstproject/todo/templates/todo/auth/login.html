@@ -1,0 +1,42 @@
+{% extends 'todo/base.html' %}
+{% load myfilters %}
+{% block title %}
+
+{% endblock %}
+
+{% block css %}
+<style>
+.main-area{
+    padding-left: 20px;
+    padding-right: 20px;
+}
+.errorlist{
+    color:red;
+}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="main-area">
+<h2>Login</h2>
+    <form method="POST">
+	{% csrf_token %}
+
+    {{ form.non_field_errors }}
+
+    <label for="id_username" class="login-labels">Username*</label>
+	{{ form.username.errors }}
+    {{ form.username|addclass:'form-control'|addplaceholder:'Username'}}
+    <label for="id_password" class="login-labels">Password*</label>
+      {{ form.password.errors }}
+      {{ form.password|addclass:'form-control'|addplaceholder:'Your Password' }}
+
+	<input type="submit" value="Login" class="btn btn-primary btn-lg" />
+</form>
+</div>
+{% endblock %}
+
+{% block js %}
+<script>
+</script>
+{% endblock %}
