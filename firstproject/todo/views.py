@@ -12,6 +12,7 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.urls import reverse
 from todo.choices import StatusChoice
 from django.contrib import messages
+from .helpers import task_status_update
 
 User = get_user_model()
 
@@ -141,7 +142,7 @@ def list_create_task(request):
         search = request.GET.get("search", None)
         status = request.GET.get("status", None)
         ordering = request.GET.get("ordering", "-created_at")
-        task_queryset = Task.objects.filter(user=request.user).order_by(ordering)
+        task_queryset = Task.objects.filter(user=request.user).order_by(ordering).prefetch_related("tags_new")
 
         if search is not None:
             task_queryset = task_queryset.filter(title__icontains=search)
@@ -149,25 +150,25 @@ def list_create_task(request):
             task_queryset = task_queryset.filter(status=status)
         
         # pagination
-        page_size = 5
-        paginator = Paginator(task_queryset, page_size)
-        try:
-            page_obj = paginator.page(page)
-        except PageNotAnInteger:
-            page_obj = paginator.page(1)
-        except EmptyPage:
-            page_obj = paginator.page(paginator.num_pages)
+        # page_size = 5
+        # paginator = Paginator(task_queryset, page_size)
+        # try:
+        #     page_obj = paginator.page(page)
+        # except PageNotAnInteger:
+        #     page_obj = paginator.page(1)
+        # except EmptyPage:
+        #     page_obj = paginator.page(paginator.num_pages)
 
         # previous
-        if page_obj.has_previous():
-            previous = page_obj.previous_page_number()
-        else:
-            previous = ""
-        # next
-        if page_obj.has_next():
-            next = page_obj.next_page_number()
-        else:
-            next = ""
+        # if page_obj.has_previous():
+        #     previous = page_obj.previous_page_number()
+        # else:
+        #     previous = ""
+        # # next
+        # if page_obj.has_next():
+        #     next = page_obj.next_page_number()
+        # else:
+        #     next = ""
 
         # response_payload_results = serialize("json", page_obj.object_list)
         # return JsonResponse({
@@ -181,13 +182,13 @@ def list_create_task(request):
         #     }
         # }, status=200)
 
-        print(page_obj.object_list)
+        # print(page_obj.object_list)
 
         context = {
-            "is_paginated": True,
-            "page_obj": page_obj,
-            "paginator": page_obj.paginator,
-            "results": page_obj.object_list
+            "is_paginated": False,
+            # "page_obj": page_obj,
+            # "paginator": page_obj.paginator,
+            "results": task_queryset
         }
         return render(request, template_name="todo/todo_list.html", context=context)
     else:
@@ -199,7 +200,7 @@ def list_create_task(request):
 
 
 @login_required
-def retrieve_update_task(request, id):
+def retrieve_task(request, id):
     if request.method == "GET":
         task = Task.objects.filter(user=request.user, id=id).first()
         if task is None:
@@ -215,22 +216,54 @@ def retrieve_update_task(request, id):
             "message": "Successfully retrieved",
             "payload": json.loads(task_serialized)[0]
         }, status=200)
-    if request.method in ["PUT", "PATCH"]:
-        data = json.loads(request.body)
+    
+
+@login_required
+def update_task(request, id):
+    if request.method == "GET":
         task = Task.objects.filter(user=request.user, id=id).first()
         if task is None:
-            return JsonResponse({
-                "status": "error",
-                "message": f"Task with {id} id not found",
-                "payload": {}
-            }, status=404)
-        update_obj(task, **data)
+            return HttpResponse("Not Found")
         task_serialized = serialize("json", [task])
-        return JsonResponse({
-            "status": "success",
-            "message": "Successfully updated",
-            "payload": json.loads(task_serialized)[0]
-        }, status=200)
+        context_data = {
+            "task": json.loads(task_serialized)[0]
+        }
+        print(task.due_date)
+        return render(request=request, template_name="todo/update_task.html", context=context_data)
+    if request.method == "POST":
+        data = request.POST
+        data = {
+            "title": data.get("title", None),
+            "description": data.get("description", None),
+            "status": data.get("status", None),
+            "due_date": data.get("due_date", None),
+            "due_time": data.get("due_time", None)
+        }
+        print(data)
+        if data["due_date"] == "":
+            data["due_date"] = None
+        if data["due_time"] == "":
+            data["due_time"] = None
+        task = Task.objects.filter(user=request.user, id=id).first()
+        if task is None:
+            return HttpResponse("Not Found")
+
+        # status update
+        status = data.get("status")
+        if status is not None:
+            task_status_update(task=task, status=status)
+            del data["status"]
+
+        update_obj(task, **data)
+        messages.success(request=request, message="Successfully Updated")
+        return redirect("/tasks/")
+
+        # task_serialized = serialize("json", [task])
+        # return JsonResponse({
+        #     "status": "success",
+        #     "message": "Successfully updated",
+        #     "payload": json.loads(task_serialized)[0]
+        # }, status=200)
 
 
 @login_required

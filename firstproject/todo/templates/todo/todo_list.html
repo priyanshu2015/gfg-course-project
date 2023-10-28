@@ -81,6 +81,11 @@
             <div class="ms-2 me-auto">
               <div class="fw-bold">{{task.title}}</div>
               {{task.description}}
+              <div>
+                {% for tag in task.tags_new.all %}
+                {{tag.name}}
+                {% endfor %}
+              </div>
             </div>
             <div class="d-flex flex-row">
                 <span class="badge bg-primary rounded-pill">{{task.status | lower_case }}</span>

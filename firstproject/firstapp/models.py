@@ -13,5 +13,9 @@ class Account(models.Model):
     def __str__(self) -> str:
         return f"{self.amount}_{self.currency}"
     
+    @property
+    def holder_username(self):
+        return self.user.username
+    
 
 # admin => 5 accounts
