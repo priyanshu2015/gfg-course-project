@@ -17,14 +17,12 @@
 <div class="main-area">
     <form method="POST" action=""> {% csrf_token %}
         {{form.as_p}}
-        <input type="submit" value="Update" />
+        <input type="submit" value="submit" />
     </form>
 </div>
 {% endblock %}
 
 {% block js %}
 <script>
-var statusList = document.getElementById("update-task-status-list");
-statusList.value = "{{task.fields.status}}"
 </script>
 {% endblock %}
