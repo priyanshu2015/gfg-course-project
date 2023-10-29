@@ -9,6 +9,11 @@ def addplaceholder(value, token):
 def lower_case(value):
     return value.lower()
 
+def addclass(value, token):
+    value.field.widget.attrs["class"] = token
+    return value
+
 register.filter(addplaceholder)
 register.filter(lower_case)
+register.filter(addclass)
 

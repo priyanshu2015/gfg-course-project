@@ -17,5 +17,21 @@ class Account(models.Model):
     def holder_username(self):
         return self.user.username
     
+    class Meta:
+        permissions = (
+            ('can_make_transfers', 'can make transfers'),
+            ('can_deposit_funds', 'can deposit funds')
+        )
+    
 
 # admin => 5 accounts
+
+# sum of amounts present in all the accounts in our system
+# select * from account SUM(currency);
+# select SUM(Amount) from account where currency="inr";
+
+# sum of amounts in specific currency
+
+# inr => amount = 100
+# usd => amount = 200
+# group_by clause => values

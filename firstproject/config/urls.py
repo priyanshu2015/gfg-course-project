@@ -23,4 +23,5 @@ urlpatterns = [
     path("firstapp/", include('firstapp.urls')),
     path("", include('todo.urls')),
     path("__debug__/", include(debug_toolbar.urls)),
+    path("users/", include('users.urls')),
 ]
