@@ -1,3 +1,4 @@
+from django.forms import ValidationError
 from django.shortcuts import redirect, render
 from django.http import JsonResponse, HttpResponse
 import json
@@ -57,6 +58,7 @@ def login(request):
                     return redirect(request.GET.get("next"))
                 return redirect('/tasks/')
         print(form.errors)
+        print(form.errors.as_json())
         form.add_error('', "passwords do not match !")
         form.add_error('username', "passwords do not match !")
         # form is not valid or user is not authenticated
